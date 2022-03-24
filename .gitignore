@@ -5,3 +5,5 @@ bin/
 dist/
 .idea
 *.iml
+package/scripts/build.ksh
+package/scripts/shell.ksh
