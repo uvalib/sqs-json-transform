@@ -1,0 +1,11 @@
+.idea
+.git
+.project
+.settings
+bin
+dist
+data
+test
+tmp
+README.md
+env.*
