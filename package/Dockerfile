@@ -5,6 +5,7 @@ FROM openjdk:8 as builder
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y install ant
 WORKDIR /build
 COPY build.xml ./
+COPY log4j.properties ./
 COPY src ./src
 COPY lib ./lib
 COPY libaws ./libaws
