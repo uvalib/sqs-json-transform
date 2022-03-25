@@ -38,7 +38,7 @@
     </target>
     
     <target description="build jar" name="jar" depends="compile">
-        <jar destfile="dist/sqsjson2xmlr.jar">
+        <jar destfile="dist/sqsjson2xml.jar">
             <manifest>
                 <attribute name="Main-Class" value="edu.virginia.sqsjson.SQSQueueDriver"/>
                 <!-- <attribute name="Version" value="${version}"/> -->
