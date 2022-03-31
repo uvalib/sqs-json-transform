@@ -13,8 +13,6 @@ import java.io.InputStreamReader;
 import org.junit.Test;
 
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
-import com.amazonaws.services.sqs.model.PurgeQueueRequest;
-import com.amazonaws.services.sqs.model.PurgeQueueResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageResult;
 
@@ -30,11 +28,12 @@ public class TestReadFromQueue
         String queueUrl = AwsSqsSingleton.getInstance(s3BucketName).getQueueUrlForName(queueName, true);
         
         // Make Sure The Queue is empty
-        PurgeQueueResult purgeResult = AwsSqsSingleton.getInstance(s3BucketName).getSQS().purgeQueue(new PurgeQueueRequest(queueUrl));
+       // PurgeQueueResult purgeResult = AwsSqsSingleton.getInstance(s3BucketName).getSQS().purgeQueue(new PurgeQueueRequest(queueUrl));
         
         pushRecordsToQueue("places-30", "data/30.json", queueUrl, s3BucketName);
         pushRecordsToQueue("places-204", "data/204.json", queueUrl, s3BucketName);
         pushRecordsToQueue("places-433", "data/433.json", queueUrl, s3BucketName);
+        pushRecordsToQueue("terms-110070", "data/110070.json", queueUrl, s3BucketName);
                
     }
     
