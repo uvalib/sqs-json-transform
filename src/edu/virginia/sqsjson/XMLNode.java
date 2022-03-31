@@ -70,7 +70,8 @@ public class XMLNode {
     private String XMLEncode(String text)
     {
         String result = text;
-        result = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">",  "&gt;");
+        result = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">",  "&gt;")
+        		     .replaceAll("&amp;(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f];)", "&$1");
         return result;
     }
 }

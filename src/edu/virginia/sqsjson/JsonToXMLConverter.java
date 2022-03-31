@@ -23,7 +23,7 @@ public class JsonToXMLConverter {
 
     XMLNode topLevel;
     XMLNode currentNode;
-    
+
     JsonParser parser;
 
     int parserLevel = 0;
@@ -33,22 +33,22 @@ public class JsonToXMLConverter {
 
     private static final Pattern REMOVE_ILLEGAL_CHARS = 
             Pattern.compile("(i?)([^\\s=\"'a-zA-Z0-9._-])|(xmlns=\"[^\"]*\")");
-    
+
     public JsonToXMLConverter()
     {
     }
-    
+
     public XMLNode parseInput(Message message) 
     {
         XMLNode result = parseInput( new StringReader(message.getBody()));
         return(result);
     }
-    
+
     public XMLNode parseInput(InputStream is) 
     {
         return parseInput( new InputStreamReader(is));
     }
-    
+
     public XMLNode parseInput(final Reader in)
     {
         parser = new JsonParser(JsonParser.OPT_INTERN_KEYWORDS |
@@ -98,12 +98,17 @@ public class JsonToXMLConverter {
                     break;
                 case JsonParser.EVT_ARRAY_ENDED:
                     //this.currentNode = this.currentNode.parent;
-                    
+
                     break;
                 case JsonParser.EVT_OBJECT_MEMBER:
                     String value = parser.getMemberValue();
-                    if (JsonParser.isQuoted(value)) {
+                    if (JsonParser.isQuoted(value)) 
+                    {
                         value = JsonParser.stripQuotes(value);
+                    }
+                    if (value.contains("\u000b"))
+                    {
+                    	value = value.replaceAll("\\u000b", "&#0085;");
                     }
 
                     if (this.currentNode.parent == null)
@@ -123,7 +128,7 @@ public class JsonToXMLConverter {
 
         // return record;
     }
-    
+
     public static void main(String[] args)
     {
         JsonToXMLConverter converter = new JsonToXMLConverter();

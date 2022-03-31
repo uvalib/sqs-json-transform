@@ -91,7 +91,6 @@ public class TranslateWorker implements Runnable {
 	                messageSizes[numInBatch] = id + " : " + curMessageSize;
 	                messageReq = new SendMessageBatchRequestEntry(readerThread.getOutputQueueUrl(), xmlMessageBody).withId(id)
 	                            .addMessageAttributesEntry("id", new MessageAttributeValue().withDataType("String").withStringValue(id))
-	                            .addMessageAttributesEntry("source", new MessageAttributeValue().withDataType("String").withStringValue("solrmarc"))
 	                            .addMessageAttributesEntry("type", new MessageAttributeValue().withDataType("String").withStringValue("application/xml"));
 	                messageBatchReq.add(messageReq);
 	                readerThread.getAws_sqs().add(readerThread.getInputQueueUrl(), id, messageReceiptHandle);
