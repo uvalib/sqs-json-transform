@@ -1,8 +1,11 @@
 package edu.virginia.sqsjson;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -62,7 +65,7 @@ public class SQSQueueDriver
 
 	private TranslateWorker[] workers;
 
-   
+
     /**
      * The main entry point of the SolrMarc indexing process. Typically called by the Boot class.
      *
@@ -70,8 +73,39 @@ public class SQSQueueDriver
      */
     public static void main(String[] args)
     {
+        logger = Logger.getLogger(SQSQueueDriver.class);
+        logger.info("Starting SQS JSON translator program");
+        log_info_multi("Command line: \n" + getCommandLine());
+
         SQSQueueDriver driver = new SQSQueueDriver(args);
         driver.execute();
+    }
+
+    public static void log_info_multi(String string)
+    {
+        String lines[] = string.split("\n");
+        for (String line : lines)
+        {
+            logger.info(line);
+        }
+    }
+
+    private static String getCommandLine()
+    {
+        String sep = ""+ File.pathSeparatorChar;
+        StringBuilder sb = new StringBuilder().append("java ");
+        RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+        List<String> jvmArgs = bean.getInputArguments();
+
+        for (int i = 0; i < jvmArgs.size(); i++)
+        {
+            sb.append( jvmArgs.get( i ) ). append("\n    ");
+        }
+        sb.append("-classpath " + System.getProperty("java.class.path").replaceAll(sep,  sep+"\n               "));
+        // print the non-JVM command line arguments
+        // print name of the main class with its arguments, like org.ClassName param1 param2
+        sb.append("\n    " + System.getProperty("sun.java.command").replaceFirst(" ", "\n        ").replaceAll(" -", "\n        -"));
+        return(sb.toString().replaceAll("\n[ ]*\n", "\n"));
     }
 
     /**
@@ -80,11 +114,9 @@ public class SQSQueueDriver
      */
     public SQSQueueDriver(String[] args)
     {
-        logger = Logger.getLogger(SQSQueueDriver.class);
-
         initialize(args);
     }
-    
+
     protected void initialize(String[] args)
     {
         OptionParser parser = new OptionParser(  );
@@ -108,7 +140,7 @@ public class SQSQueueDriver
             }
             System.exit(1);
         }
-        
+
         s3BucketName = getSqsParm(options, "s3", SQS_JSON_TRANSFORM_MESSAGE_BUCKET);
         aws_sqs = AwsSqsSingleton.getInstance(s3BucketName);
         this.configureInput(options);
@@ -149,7 +181,8 @@ public class SQSQueueDriver
     {
         if (multithreaded )
         {
-        	ExecutorService transformExecutor = Executors.newFixedThreadPool(numTransformWorkers);
+            logger.info("Running in multithreaded mode with "+ numTransformWorkers +" JSON transform / output writer threads");
+            ExecutorService transformExecutor = Executors.newFixedThreadPool(numTransformWorkers);
             workers = new TranslateWorker[numTransformWorkers];
             for (int i = 0; i < numTransformWorkers; i++)
             {
@@ -230,6 +263,7 @@ public class SQSQueueDriver
         }
         else // not multi threaded
         {
+            logger.info("Running in single threaded mode");
             converter = new JsonToXMLConverter();
             while (hasNext())
 	        {
@@ -247,7 +281,7 @@ public class SQSQueueDriver
         }
         aws_sqs.shutdown();
     }
-    
+
     public boolean hasNext()
     {
         if (this.curMessages == null && this.curMessageIndex == 0 || this.curMessageIndex >= this.curMessages.size())
