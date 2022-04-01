@@ -81,7 +81,7 @@ public class TranslateWorker implements Runnable {
 	                int curMessageSize = getTotalMessageSize(xmlMessageBody, id, "id", id, "type", "application/xml");
 	                if (numInBatch > 0 && messageBatchSize + curMessageSize >= AwsSqsSingleton.SQS_SIZE_LIMIT)
 	                {
-	                    logger.info("Message batch would be too large, only sending " + (numInBatch + 1) + " messages in batch");
+	                    logger.info("Message batch would be too large, only sending " + (numInBatch) + " messages in batch");
 	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
@@ -98,7 +98,8 @@ public class TranslateWorker implements Runnable {
 	                messageBatchSize += curMessageSize;
 	                if (numInBatch == 10)
 	                {
-	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+	                	logger.debug("Sending batch of " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
+	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
 	                    numInBatch = 0;
@@ -109,7 +110,8 @@ public class TranslateWorker implements Runnable {
 	            {
 	            	if (numInBatch > 0)
 	            	{
-	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+	                	logger.info("Inpout queue empty, flushing remaining " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
+	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
 	                    numInBatch = 0;
