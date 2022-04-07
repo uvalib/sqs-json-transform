@@ -110,7 +110,7 @@ public class TranslateWorker implements Runnable {
 	            {
 	            	if (numInBatch > 0)
 	            	{
-	                	logger.info("Inpout queue empty, flushing remaining " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
+	                	logger.info("Input queue empty, flushing remaining " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
 	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
@@ -126,7 +126,7 @@ public class TranslateWorker implements Runnable {
                 Thread.currentThread().interrupt();
             }
 	    }
-        
+
         doneWorking = true;
         if (numInBatch > 0)
         {
@@ -149,19 +149,19 @@ public class TranslateWorker implements Runnable {
         }
         catch (com.amazonaws.services.sqs.model.BatchRequestTooLongException tooBig)
         {
-            logger.warn("Amazon sez I cannot handle that batch, it is too big. Perhaps I could handle a smaller one though.");
+            logger.error("Amazon sez I cannot handle that batch, it is too big. Perhaps I could handle a smaller one though.");
             for (int j = 0; j < numInBatch; j++)
             {
-                logger.warn("message : "+ messageSizes[j]);
+                logger.error("message : "+ messageSizes[j]);
             }
-            logger.warn("My computed batch size was "+ messageBatchSize, tooBig);
+            logger.error("My computed batch size was "+ messageBatchSize, tooBig);
         }
 	}
 	
     private int getTotalMessageSize(String message, String batchId, String ... attributes)
     {
         int len = message.length();
-       // len += batchId.length();
+        len += batchId.length();
         for (String attribute : attributes)
         {
             len += attribute.length() + 3;
