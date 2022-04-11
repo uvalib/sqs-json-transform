@@ -3,20 +3,24 @@ package edu.virginia.sqsjson;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
 import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
+import com.amazonaws.services.sqs.model.DeleteMessageBatchRequest;
+import com.amazonaws.services.sqs.model.DeleteMessageBatchRequestEntry;
+import com.amazonaws.services.sqs.model.DeleteMessageBatchResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
 import com.amazonaws.services.sqs.model.SendMessageBatchResult;
 import com.amazonaws.services.sqs.model.SendMessageBatchResultEntry;
-
 
 public class TranslateWorker implements Runnable {
 
@@ -58,6 +62,7 @@ public class TranslateWorker implements Runnable {
         Thread.currentThread().setName("TranslateWorker-Thread-"+threadCount);
         List<SendMessageBatchRequestEntry> messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
         String messageSizes[] = new String[10];
+        String messageBatchHandles[] = new String[10];
         converter = new JsonToXMLConverter();
         int numInBatch = 0;
         int messageBatchSize = 0;
@@ -80,29 +85,41 @@ public class TranslateWorker implements Runnable {
 		            String xmlMessageBody = sw.toString();
 	                // The attributes here must be the same (in size at least) as those added below note id is include twice since it is used as an attribute and as the batch id
 	                int curMessageSize = getTotalMessageSize(xmlMessageBody, id, "id", id, "type", "application/xml");
-	                if (numInBatch > 0 && messageBatchSize + curMessageSize >= AwsSqsSingleton.SQS_SIZE_LIMIT)
+	                if (alreadyContainsId(messageBatchReq, id))
 	                {
-	                    logger.info("Message batch would be too large, only sending " + (numInBatch) + " messages in batch");
-	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+	                    logger.info("Message batch already contains id: " + id + " flushing batch");
+	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchHandles, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
+	                    messageBatchHandles = new String[10];
+	                    numInBatch = 0;
+	                    messageBatchSize = 0;
+	                }
+	                else if (numInBatch > 0 && messageBatchSize + curMessageSize >= AwsSqsSingleton.SQS_SIZE_LIMIT)
+	                {
+	                    logger.info("Message batch would be too large, only sending " + (numInBatch) + " messages in batch");
+	                    sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchHandles, messageBatchSize);
+	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
+	                    messageSizes = new String[10];
+	                    messageBatchHandles = new String[10];
 	                    numInBatch = 0;
 	                    messageBatchSize = 0;
 	                }
 	                messageSizes[numInBatch] = id + " : " + curMessageSize;
+	                messageBatchHandles[numInBatch] = messageReceiptHandle;
 	                messageReq = new SendMessageBatchRequestEntry(readerThread.getOutputQueueUrl(), xmlMessageBody).withId(id)
 	                            .addMessageAttributesEntry("id", new MessageAttributeValue().withDataType("String").withStringValue(id))
 	                            .addMessageAttributesEntry("type", new MessageAttributeValue().withDataType("String").withStringValue("application/xml"));
 	                messageBatchReq.add(messageReq);
-	                readerThread.getAws_sqs().add(readerThread.getInputQueueUrl(), id, messageReceiptHandle);
 	                numInBatch++;
 	                messageBatchSize += curMessageSize;
 	                if (numInBatch == 10)
 	                {
 	                	logger.debug("Sending batch of " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
-	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchHandles, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
+	                    messageBatchHandles = new String[10];
 	                    numInBatch = 0;
 	                    messageBatchSize = 0;
 	                }
@@ -112,9 +129,10 @@ public class TranslateWorker implements Runnable {
 	            	if (numInBatch > 0)
 	            	{
 	                	logger.info("Input queue empty, flushing remaining " + (numInBatch) + " messages that are a total of "+messageBatchSize+" bytes in size");
-	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+	                	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchHandles, messageBatchSize);
 	                    messageBatchReq = new ArrayList<SendMessageBatchRequestEntry>(10);
 	                    messageSizes = new String[10];
+	                    messageBatchHandles = new String[10];
 	                    numInBatch = 0;
 	                    messageBatchSize = 0;
 	            	}
@@ -131,27 +149,59 @@ public class TranslateWorker implements Runnable {
         doneWorking = true;
         if (numInBatch > 0)
         {
-        	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchSize);
+        	sendMessageBatch(numInBatch, messageBatchReq, messageSizes, messageBatchHandles, messageBatchSize);
         }
 	}
-	
-	private void sendMessageBatch(int numInBatch, List<SendMessageBatchRequestEntry> messageBatchReq, String[] messageSizes, int messageBatchSize)
+
+    private boolean alreadyContainsId(List<SendMessageBatchRequestEntry> messageBatchReq, String id)
+    {
+        for (SendMessageBatchRequestEntry entry : messageBatchReq)
+        {
+        	if (entry.getId().equals(id))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+	private void sendMessageBatch(int numInBatch, List<SendMessageBatchRequestEntry> messageBatchReq, String[] messageSizes, String[] messageReceiptHandles, int messageBatchSize)
 	{
-        List<String> deleteBatchIds = new ArrayList<String>(10);
+	    List<DeleteMessageBatchRequestEntry> toDelete = new ArrayList<DeleteMessageBatchRequestEntry>(10);
+        Map<String, String> batchIdtoMessageHandleMap = new LinkedHashMap<String, String>(10);
+        for (int i = 0; i < numInBatch; i++)
+        {
+        	batchIdtoMessageHandleMap.put(messageBatchReq.get(i).getId(), messageReceiptHandles[i]);
+        }
         SendMessageBatchRequest sendBatchRequest = new SendMessageBatchRequest().withQueueUrl(readerThread.getOutputQueueUrl())
                 .withEntries(messageBatchReq);
         try {
             SendMessageBatchResult result = readerThread.getAws_sqs().getSQS().sendMessageBatch(sendBatchRequest);
             for (SendMessageBatchResultEntry success : result.getSuccessful())
             {
-                deleteBatchIds.add(success.getId());
+                String messageHandleToDelete = batchIdtoMessageHandleMap.get(success.getId());
+                if (messageHandleToDelete != null)
+            	{
+                	toDelete.add(new DeleteMessageBatchRequestEntry(success.getId(), messageHandleToDelete));
+            	}
+                else
+                {
+                	logger.error("Can't find message handle for message with id "+success.getId());
+                }
             }
             for (BatchResultErrorEntry errresult : result.getFailed())
             {
-            	logger.error("Error sending message with ID: " + errresult.getId());
+                logger.error("Error sending message with ID: " + errresult.getId());
+                logger.error("  message is : " + errresult.getMessage());
+            	logger.error("  message receipt was: "+ batchIdtoMessageHandleMap.get(errresult.getId()));
+            }
+            DeleteMessageBatchRequest delrequest = new DeleteMessageBatchRequest(readerThread.getInputQueueUrl()).withEntries(toDelete);
+            DeleteMessageBatchResult delresult = readerThread.getAws_sqs().getSQS().deleteMessageBatch(delrequest);
+            for (BatchResultErrorEntry errresult : delresult.getFailed())
+            {
+            	logger.error("Error deleting message with ID "+ errresult.getId());
             	logger.error("  message is : " + errresult.getMessage());
             }
-            readerThread.getAws_sqs().removeBatch(deleteBatchIds);   
         }
         catch (com.amazonaws.services.sqs.model.BatchRequestTooLongException tooBig)
         {
@@ -162,8 +212,8 @@ public class TranslateWorker implements Runnable {
             }
             logger.error("My computed batch size was "+ messageBatchSize, tooBig);
         }
-	}
-	
+    }
+
     private int getTotalMessageSize(String message, String batchId, String ... attributes)
     {
         int len = message.length();
