@@ -18,6 +18,7 @@ import org.apache.log4j.Logger;
 import edu.virginia.sqsjson.AwsSqsSingleton;
 
 import com.amazonaws.services.sqs.model.DeleteMessageRequest;
+import com.amazonaws.services.sqs.model.DeleteMessageResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
@@ -276,7 +277,7 @@ public class SQSQueueDriver
 	            xmltree.traverse(out);
 	            String messageBody = sw.toString();
 	            sendMessage(id, messageBody);
-	            aws_sqs.getSQS().deleteMessage(new DeleteMessageRequest(inputQueueUrl, messageReceiptHandle));            
+	            DeleteMessageResult result = aws_sqs.getSQS().deleteMessage(new DeleteMessageRequest(inputQueueUrl, messageReceiptHandle));
 	        }
         }
         aws_sqs.shutdown();

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
+import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
@@ -50,7 +51,7 @@ public class TranslateWorker implements Runnable {
     {
         return(interrupted);
     }
-    
+
 	@Override
 	public void run() 
 	{
@@ -67,7 +68,7 @@ public class TranslateWorker implements Runnable {
             try
             {
                 Message message = readQ.poll(2000, TimeUnit.MILLISECONDS);
-	            
+
 	            if (message != null)
 	            {
 	            	String id = message.getMessageAttributes().get("id").getStringValue(); 
@@ -145,6 +146,11 @@ public class TranslateWorker implements Runnable {
             {
                 deleteBatchIds.add(success.getId());
             }
+            for (BatchResultErrorEntry errresult : result.getFailed())
+            {
+            	logger.error("Error sending message with ID: " + errresult.getId());
+            	logger.error("  message is : " + errresult.getMessage());
+            }
             readerThread.getAws_sqs().removeBatch(deleteBatchIds);   
         }
         catch (com.amazonaws.services.sqs.model.BatchRequestTooLongException tooBig)
@@ -166,7 +172,7 @@ public class TranslateWorker implements Runnable {
         {
             len += attribute.length() + 3;
         }
-        len += 500;  // fudge factor.    MMMmm  fudge.
+        len += 1000;  // fudge factor.    MMMmm  fudge.
         return(len);
     }
 

@@ -14,6 +14,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
+import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.DeleteMessageBatchRequest;
@@ -31,7 +32,7 @@ public class AwsSqsSingleton
     private AmazonS3 s3;
     private boolean shutdown = false;
     private Map<String, MapEntry> recHandleMap = null;
-    
+
     private class MapEntry {
         String queueUrl;
         String messageHandle;
@@ -43,13 +44,13 @@ public class AwsSqsSingleton
             this.chain = null;
         }
     };
-    
+
     private final static Logger logger = Logger.getLogger(AwsSqsSingleton.class);
 
     private static AwsSqsSingleton instance = null;
-    
+
     private AwsSqsSingleton() {} ; // private to ensure its a singleton
-    
+
     public static AwsSqsSingleton getInstance(String s3BucketName)
     {
         if (instance != null) return (instance);
@@ -61,7 +62,7 @@ public class AwsSqsSingleton
             ExtendedClientConfiguration extendedClientConfig = new ExtendedClientConfiguration();
             extendedClientConfig.withLargePayloadSupportEnabled(local.s3, s3BucketName)
                 .withAlwaysThroughS3(alwaysThroughS3).withMessageSizeThreshold(SQS_SIZE_LIMIT);
-            
+
             final AmazonSQSExtendedClient sqsx = new AmazonSQSExtendedClient(sqstmp, extendedClientConfig);
             local.sqs = sqsx;
         }
@@ -73,12 +74,12 @@ public class AwsSqsSingleton
         instance = local;
         return(instance);
     }
-    
+
     public AmazonSQS getSQS()
     {
         return(sqs);     
     }
-    
+
     public String getQueueUrlForName(String queueName, boolean createQueueIfNotExists)
     {
         logger.debug("Listing all queues in your account.");
@@ -107,7 +108,7 @@ public class AwsSqsSingleton
             throw new RuntimeException("SQS queue named "+ queueName+ " not found");
         }
     }
-    
+
     public void add(String queueUrl, String id, String messageHandle)
     {
         String key = id;
@@ -116,7 +117,7 @@ public class AwsSqsSingleton
             if (recHandleMap.containsKey(key))
             {
                 logger.warn("Already Have a stored message handle with id "+ id + " in queue " + queueUrl + " chaining existing one");
-                
+
                 MapEntry existing = recHandleMap.get(key);
                 while (existing.chain != null)
                 {
@@ -131,7 +132,7 @@ public class AwsSqsSingleton
             }
         }
     }
-    
+
     public void remove(String id)
     {
         String key = id;
@@ -167,7 +168,7 @@ public class AwsSqsSingleton
         }
         return(mapEntry);
     }
-    
+
     public void removeBatch(List<String> deleteBatchIds)
     {
         Iterator<String> iter = deleteBatchIds.iterator();
@@ -186,8 +187,12 @@ public class AwsSqsSingleton
                     queueUrl = entry.queueUrl;
                 }
             }
-            @SuppressWarnings("unused")
             DeleteMessageBatchResult res = getSQS().deleteMessageBatch(new DeleteMessageBatchRequest(queueUrl).withEntries(toDelete));
+            for (BatchResultErrorEntry errresult : res.getFailed())
+            {
+            	logger.error("Error deleting message with ID "+ errresult.getId());
+            	logger.error("  message is : " + errresult.getMessage());
+            }
         }
     }
 
