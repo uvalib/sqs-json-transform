@@ -196,11 +196,14 @@ public class TranslateWorker implements Runnable {
             	logger.error("  message receipt was: "+ batchIdtoMessageHandleMap.get(errresult.getId()));
             }
             DeleteMessageBatchRequest delrequest = new DeleteMessageBatchRequest(readerThread.getInputQueueUrl()).withEntries(toDelete);
-            DeleteMessageBatchResult delresult = readerThread.getAws_sqs().getSQS().deleteMessageBatch(delrequest);
-            for (BatchResultErrorEntry errresult : delresult.getFailed())
+            if (toDelete.size() > 0)
             {
-            	logger.error("Error deleting message with ID "+ errresult.getId());
-            	logger.error("  message is : " + errresult.getMessage());
+                DeleteMessageBatchResult delresult = readerThread.getAws_sqs().getSQS().deleteMessageBatch(delrequest);
+                for (BatchResultErrorEntry errresult : delresult.getFailed())
+                {
+                	logger.error("Error deleting message with ID "+ errresult.getId());
+                	logger.error("  message is : " + errresult.getMessage());
+                }
             }
         }
         catch (com.amazonaws.services.sqs.model.BatchRequestTooLongException tooBig)
