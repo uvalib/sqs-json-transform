@@ -1,7 +1,8 @@
 #
 # build the target application
 #
-FROM openjdk:8 as builder
+
+FROM public.ecr.aws/docker/library/openjdk:8-jdk as builder
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y install ant
 WORKDIR /build
 COPY build.xml ./
@@ -14,7 +15,7 @@ RUN ant
 #
 # build the target container
 #
-FROM openjdk:8
+FROM public.ecr.aws/docker/library/openjdk:8-jre
 
 # update packages
 RUN apt-get -y update && apt-get -y upgrade
