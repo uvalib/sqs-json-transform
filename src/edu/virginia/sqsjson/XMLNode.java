@@ -94,14 +94,18 @@ public class XMLNode {
 
     private String fixCoordinates(String text2)
     {
-        Pattern coordinatePattern = Pattern.compile("(\\[[-]?\\d*)(\\d\\d\\d\\d)[.](\\d*,[ ]*)([-]?\\d*)(\\d\\d\\d\\d)[.](\\d*])");
+        Pattern coordinatePattern = Pattern.compile("(\\[[-]?)(\\d*)(\\d\\d\\d\\d)([.](\\d+))?,[ ]*([-]?)(\\d*)(\\d\\d\\d\\d)([.](\\d+))?(])");
         Matcher coordinateMatcher;
         int numFixed = 0;
         int start = 0;
         for (coordinateMatcher = coordinatePattern.matcher(text2); coordinateMatcher.find(start); coordinateMatcher = coordinatePattern.matcher(text2))
         {
             numFixed ++;
-            text2 = coordinateMatcher.replaceFirst("$1.$2$3$4.$5$6");
+            String replaceStr = coordinateMatcher.group(1) + (coordinateMatcher.group(2).isEmpty() ? "0" : coordinateMatcher.group(2)) + "." +
+            		            coordinateMatcher.group(3) + (coordinateMatcher.group(5) == null ? "" : coordinateMatcher.group(5)) + "," + 
+            		            coordinateMatcher.group(6) + (coordinateMatcher.group(7).isEmpty() ? "0" : coordinateMatcher.group(7)) + "." +
+            		            coordinateMatcher.group(8) + (coordinateMatcher.group(10) == null ? "" : coordinateMatcher.group(10)) + "]";
+            text2 = coordinateMatcher.replaceFirst(replaceStr);
         }
         if (numFixed > 0)
         {
