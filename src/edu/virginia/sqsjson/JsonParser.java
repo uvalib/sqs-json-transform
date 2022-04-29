@@ -506,9 +506,9 @@ public class JsonParser extends Object {
                          }
                              continue;              // backslash
                          case '/': {
-                             storeChar('\u2044');
+                             storeChar('/');
                          }
-                             continue;              // solidus (I was suprised too!!)
+                             continue;              // slash  (optionally escaped)
                          case 'b': {
                              storeChar('\b');
                          }
