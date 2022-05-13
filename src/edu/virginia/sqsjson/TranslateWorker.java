@@ -2,6 +2,7 @@ package edu.virginia.sqsjson;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -217,13 +218,16 @@ public class TranslateWorker implements Runnable {
         }
     }
 
+    public final static Charset utf8 = Charset.forName("UTF-8");
+
     private int getTotalMessageSize(String message, String batchId, String ... attributes)
     {
-        int len = message.length();
-        len += batchId.length();
+        int len = message.getBytes(utf8).length;
+        int padFactor = 3; // a guess at the padding for each string in the attribute set
+        len += batchId.length() + padFactor;
         for (String attribute : attributes)
         {
-            len += attribute.length() + 3;
+            len += attribute.length() + padFactor;
         }
         len += 1000;  // fudge factor.    MMMmm  fudge.
         return(len);
