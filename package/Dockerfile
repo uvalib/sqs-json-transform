@@ -2,8 +2,8 @@
 # build the target application
 #
 
-FROM public.ecr.aws/docker/library/openjdk:8-jdk as builder
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y install ant
+FROM public.ecr.aws/docker/library/amazoncorretto:8-al2022-jdk as builder
+RUN yum -y update && yum -y install ant
 WORKDIR /build
 COPY build.xml ./
 COPY log4j.properties ./
@@ -15,10 +15,10 @@ RUN ant
 #
 # build the target container
 #
-FROM public.ecr.aws/docker/library/openjdk:8-jre
+FROM public.ecr.aws/docker/library/amazoncorretto:8-al2022-RC-jre
 
 # update packages
-RUN apt-get -y update && apt-get -y upgrade
+RUN yum -y update 
 
 # Create the run user and group
 RUN groupadd webservice && useradd -g webservice webservice
